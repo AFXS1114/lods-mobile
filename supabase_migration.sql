@@ -48,32 +48,91 @@ END;
 $$;
 
 -- 6. Row Level Security (RLS) Configuration
--- IMPORTANT: This allows the mobile app (anon role) to access the tables.
+-- Secure policies bound to Supabase Auth UUIDs
 
 ALTER TABLE public.merchants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.menu_items ENABLE ROW LEVEL SECURITY;
 
--- Drop existing policies if they exist to avoid "already exists" errors
+-- Drop existing policies
 DROP POLICY IF EXISTS "Mobile App Read Merchants" ON public.merchants;
 DROP POLICY IF EXISTS "Mobile App Access Users" ON public.users;
 DROP POLICY IF EXISTS "Mobile App Access Orders" ON public.orders;
 DROP POLICY IF EXISTS "Mobile App Access Menu Items" ON public.menu_items;
 
--- Create Policies
-CREATE POLICY "Mobile App Read Merchants" ON public.merchants 
-  FOR SELECT TO anon USING (true);
+-- Create Secure Policies
+CREATE POLICY "Merchants access own profile" ON public.merchants FOR ALL TO authenticated USING (auth.uid() = id);
+CREATE POLICY "Anyone can read merchants" ON public.merchants FOR SELECT TO authenticated USING (true);
 
-CREATE POLICY "Mobile App Access Users" ON public.users 
-  FOR ALL TO anon USING (true);
+CREATE POLICY "Riders access own profile" ON public.users FOR ALL TO authenticated USING (auth.uid() = id);
 
-CREATE POLICY "Mobile App Access Orders" ON public.orders 
-  FOR ALL TO anon USING (true);
+CREATE POLICY "Riders see own orders" ON public.orders FOR ALL TO authenticated USING (auth.uid() = rider_id);
+-- Note: If merchants need to view/update orders, you may need an additional policy here checking `auth.uid() = merchant_id` if that column exists on orders.
 
-CREATE POLICY "Mobile App Access Menu Items" ON public.menu_items 
-  FOR ALL TO anon USING (true);
+CREATE POLICY "Merchants access own menu items" ON public.menu_items FOR ALL TO authenticated USING (auth.uid() = merchant_id);
+CREATE POLICY "Anyone can read menu items" ON public.menu_items FOR SELECT TO authenticated USING (true);
 
--- 7. Indexes for Login Performance
-CREATE INDEX IF NOT EXISTS idx_merchants_email_login ON public.merchants (email);
-CREATE INDEX IF NOT EXISTS idx_users_email_login ON public.users (email);
+-- 7. Supabase Auth Integration & Migration
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Trigger to automatically create a row in users or merchants when signing up via Supabase Auth
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.raw_user_meta_data->>'role' = 'rider' THEN
+    INSERT INTO public.users (id, email)
+    VALUES (NEW.id, NEW.email)
+    ON CONFLICT (id) DO NOTHING;
+  ELSIF NEW.raw_user_meta_data->>'role' = 'merchant' THEN
+    INSERT INTO public.merchants (id, email)
+    VALUES (NEW.id, NEW.email)
+    ON CONFLICT (id) DO NOTHING;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- ============================================================
+-- 8. ONE-TIME MIGRATION: Plaintext Passwords -> Supabase Auth
+-- Run this ONCE to migrate your existing users.
+-- ============================================================
+
+/*
+-- Migrate existing Riders
+INSERT INTO auth.users (
+  instance_id, id, aud, role, email, encrypted_password, 
+  email_confirmed_at, recovery_sent_at, last_sign_in_at, 
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at, 
+  confirmation_token, email_change, email_change_token_new, recovery_token
+)
+SELECT 
+  '00000000-0000-0000-0000-000000000000', id, 'authenticated', 'authenticated', email, crypt(password, gen_salt('bf')),
+  now(), now(), now(), 
+  '{"provider":"email","providers":["email"]}', jsonb_build_object('role', 'rider'), now(), now(),
+  '', '', '', ''
+FROM public.users
+WHERE email IS NOT NULL AND password IS NOT NULL
+ON CONFLICT (id) DO NOTHING;
+
+-- Migrate existing Merchants
+INSERT INTO auth.users (
+  instance_id, id, aud, role, email, encrypted_password, 
+  email_confirmed_at, recovery_sent_at, last_sign_in_at, 
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at, 
+  confirmation_token, email_change, email_change_token_new, recovery_token
+)
+SELECT 
+  '00000000-0000-0000-0000-000000000000', id, 'authenticated', 'authenticated', email, crypt(password, gen_salt('bf')),
+  now(), now(), now(), 
+  '{"provider":"email","providers":["email"]}', jsonb_build_object('role', 'merchant'), now(), now(),
+  '', '', '', ''
+FROM public.merchants
+WHERE email IS NOT NULL AND password IS NOT NULL
+ON CONFLICT (id) DO NOTHING;
+*/

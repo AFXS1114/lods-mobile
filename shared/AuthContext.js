@@ -8,78 +8,150 @@ const STORAGE_ROLE = 'lods_user_role';
 const STORAGE_USER = 'lods_user_data';
 
 export function AuthProvider({ children }) {
-  const [user, setUser]       = useState(null);  // rider row from `users` table OR merchant row from `merchants` table
+  const [user, setUser]       = useState(null);  // rider profile OR merchant profile
   const [role, setRole]       = useState(null);  // 'rider' | 'merchant'
   const [loading, setLoading] = useState(true);
 
-  // ── Rehydrate session on app start ──────────────────────────
+  // ── Rehydrate session on app start & listen to Supabase Auth ──
   useEffect(() => {
-    (async () => {
+    let mounted = true;
+
+    const initAuth = async () => {
+      // 1. Restore local cache first for instant UI loading
       try {
         const [storedRole, storedUser] = await Promise.all([
           AsyncStorage.getItem(STORAGE_ROLE),
           AsyncStorage.getItem(STORAGE_USER),
         ]);
-        if (storedRole && storedUser) {
+        if (storedRole && storedUser && mounted) {
           setRole(storedRole);
           setUser(JSON.parse(storedUser));
         }
       } catch (e) {
-        console.error('[AuthContext] rehydrate error:', e);
-      } finally {
-        setLoading(false);
+        console.error('[AuthContext] Cache restore error:', e);
       }
-    })();
+
+      // 2. Fetch active Supabase session
+      if (mounted) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (mounted) handleSession(session);
+        });
+      }
+    };
+
+    initAuth();
+
+    // 3. Listen for future auth changes (login/logout events)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (mounted) handleSession(session);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
-  // ── Rider Login (direct users table lookup) ────────────────
+  const handleSession = async (session) => {
+    if (!session?.user) {
+      await AsyncStorage.multiRemove([STORAGE_ROLE, STORAGE_USER]);
+      setUser(null);
+      setRole(null);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const uid = session.user.id;
+      
+      // Fetch latest profile from DB based on role, fallback to trying both
+      const metaRole = session.user.user_metadata?.role;
+      
+      if (metaRole === 'rider' || !metaRole) {
+        const { data: riderProfile } = await supabase.from('users').select('*').eq('id', uid).single();
+        if (riderProfile) {
+          await _persistSession(riderProfile, 'rider');
+          setLoading(false);
+          return;
+        }
+      }
+
+      if (metaRole === 'merchant' || !metaRole) {
+        const { data: merchantProfile } = await supabase.from('merchants').select('*').eq('id', uid).single();
+        if (merchantProfile) {
+          await _persistSession(merchantProfile, 'merchant');
+          setLoading(false);
+          return;
+        }
+      }
+
+      // If user exists in Auth but no profile found, sign them out to prevent dead state
+      console.warn('[AuthContext] No profile found for authenticated user. Signing out.');
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.error('[AuthContext] Session fetch error:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Rider Login ──────────────────────────────────────────────
   const loginRider = async (email, password) => {
-    const { data: rows, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email.trim().toLowerCase())
-      .eq('password', password)
-      .eq('role', 'rider')
-      .limit(1);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
 
     if (error) throw new Error(error.message);
-    if (!rows || rows.length === 0) {
+
+    // Verify they are actually a rider
+    const { data: riderProfile, error: profileError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', data.user.id)
+      .single();
+
+    if (profileError || !riderProfile) {
+      await supabase.auth.signOut();
       throw new Error('Invalid email or password for rider account.');
     }
 
-    const riderRow = rows[0];
-    await _persistSession(riderRow, 'rider');
-    return riderRow;
+    return riderProfile; // `onAuthStateChange` will handle state persistence
   };
 
-  // ── Merchant Login (direct merchants table lookup) ───────────
+  // ── Merchant Login ───────────────────────────────────────────
   const loginMerchant = async (email, password) => {
-    const { data: rows, error } = await supabase
-      .from('merchants')
-      .select('*')
-      .eq('email', email.trim().toLowerCase())
-      .eq('password', password)
-      .limit(1);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
 
     if (error) throw new Error(error.message);
-    if (!rows || rows.length === 0) {
+
+    // Verify they are actually a merchant
+    const { data: merchantProfile, error: profileError } = await supabase
+      .from('merchants')
+      .select('*')
+      .eq('id', data.user.id)
+      .single();
+
+    if (profileError || !merchantProfile) {
+      await supabase.auth.signOut();
       throw new Error('Invalid email or password for merchant account.');
     }
 
-    const merchantRow = rows[0];
-    await _persistSession(merchantRow, 'merchant');
-    return merchantRow;
+    return merchantProfile; // `onAuthStateChange` will handle state persistence
   };
 
   // ── Logout ───────────────────────────────────────────────────
   const logout = async () => {
-    // Mark rider offline before clearing state
+    // Mark rider offline before logging out
     if (role === 'rider' && user?.id) {
       await supabase.from('users').update({ status: 'offline' }).eq('id', user.id);
     }
-    await AsyncStorage.multiRemove([STORAGE_ROLE, STORAGE_USER]);
-    setUser(null);
-    setRole(null);
+    
+    await supabase.auth.signOut();
+    // `onAuthStateChange` will automatically clear state and storage
   };
 
   // ── Helpers ──────────────────────────────────────────────────
@@ -91,6 +163,7 @@ export function AuthProvider({ children }) {
   };
 
   const updateUser = async (patch) => {
+    if (!user) return;
     const updated = { ...user, ...patch };
     await AsyncStorage.setItem(STORAGE_USER, JSON.stringify(updated));
     setUser(updated);
