@@ -116,11 +116,10 @@ BEGIN
     ON CONFLICT (id) DO NOTHING;
   ELSIF NEW.raw_user_meta_data->>'role' = 'client' THEN
     INSERT INTO public.clients (
-      id, email, full_name, address, contact_no, landmark, latitude, longitude
+      id, full_name, address, phone, landmark, latitude, longitude
     )
     VALUES (
       NEW.id, 
-      NEW.email, 
       NEW.raw_user_meta_data->>'full_name',
       NEW.raw_user_meta_data->>'address',
       NEW.raw_user_meta_data->>'contact_no',
