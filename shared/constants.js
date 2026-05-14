@@ -1,23 +1,27 @@
 // ─── Brand Colors ────────────────────────────────────────────
 export const COLORS = {
   // Backgrounds
-  bg:       '#0D1117',
-  card:     '#161B22',
-  surface:  '#21262D',
-  border:   '#30363D',
+  bg:       '#FFFFFF',   // White background
+  card:     '#F5F5F7',   // Slight off-white for cards
+  surface:  '#FFFFFF',
+  border:   '#EAEAEA',
 
-  // Brand
-  primary:  '#FF6B35',   // LODS orange
-  primaryDim:'#FF6B3520',
-  accent:   '#3FB950',   // green (online / success)
-  warning:  '#D29922',   // yellow / preparing
-  danger:   '#F85149',   // red / cancelled
-  info:     '#58A6FF',   // blue / in-transit
+  // Brand (LODS Logo Colors)
+  primary:  '#9A66FF',   // Primary Purple
+  primaryDim:'#9A66FF20',
+  secondary:'#F9D96F',   // Secondary Yellow
+  accent:   '#E6A23C',   // Accent Orange
+
+  // Semantic
+  success:  '#3FB950',
+  warning:  '#E6A23C',   // Reusing orange for warning
+  danger:   '#F85149',
+  info:     '#58A6FF',
 
   // Text
-  text:     '#F0F6FC',
-  textMuted:'#8B949E',
-  textDim:  '#484F58',
+  text:     '#210F0A',   // Text Dark
+  textMuted:'#6B7280',
+  textDim:  '#9CA3AF',
 };
 
 // ─── Order Status Values (match lods-terminal exactly) ───────

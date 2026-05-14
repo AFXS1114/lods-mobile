@@ -5,12 +5,12 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0D1117"
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
       "supportsTablet": false,
@@ -23,7 +23,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0D1117"
+        "backgroundColor": "#FFFFFF"
       },
       "package": "com.lods.mobile2",
       "permissions": [
@@ -49,7 +49,7 @@
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
-          "color": "#FF6B35",
+          "color": "#9A66FF",
           "sounds": []
         }
       ]

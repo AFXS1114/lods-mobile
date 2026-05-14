@@ -38,7 +38,7 @@ export default function App() {
   return (
     <AuthProvider>
       <NavigationContainer>
-        <StatusBar style="light" backgroundColor={COLORS.bg} />
+        <StatusBar style="dark" backgroundColor={COLORS.bg} />
         <RootNavigator />
       </NavigationContainer>
     </AuthProvider>
