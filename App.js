@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from './shared/AuthContext';
 import AuthStack    from './navigation/AuthStack';
 import RiderStack   from './navigation/RiderStack';
 import MerchantStack from './navigation/MerchantStack';
+import ClientStack   from './navigation/ClientStack';
 import { COLORS } from './shared/constants';
 
 function RootNavigator() {
@@ -24,13 +25,7 @@ function RootNavigator() {
   if (!user) return <AuthStack />;
   if (role === 'rider') return <RiderStack />;
   if (role === 'merchant') return <MerchantStack />;
-  if (role === 'client') {
-    return (
-      <View style={{ flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: 'bold' }}>Customer interface coming soon!</Text>
-      </View>
-    );
-  }
+  if (role === 'client') return <ClientStack />;
   return <AuthStack />;
 }
 
