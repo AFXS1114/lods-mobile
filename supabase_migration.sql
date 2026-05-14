@@ -125,8 +125,8 @@ BEGIN
       NEW.raw_user_meta_data->>'address',
       NEW.raw_user_meta_data->>'contact_no',
       NEW.raw_user_meta_data->>'landmark',
-      NULLIF(NEW.raw_user_meta_data->>'latitude', '')::DOUBLE PRECISION,
-      NULLIF(NEW.raw_user_meta_data->>'longitude', '')::DOUBLE PRECISION
+      NULLIF(NULLIF(NEW.raw_user_meta_data->>'latitude', ''), 'null')::DOUBLE PRECISION,
+      NULLIF(NULLIF(NEW.raw_user_meta_data->>'longitude', ''), 'null')::DOUBLE PRECISION
     )
     ON CONFLICT (id) DO NOTHING;
   END IF;
