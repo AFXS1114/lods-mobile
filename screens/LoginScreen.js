@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert,
@@ -34,6 +34,43 @@ export default function LoginScreen() {
   const [lat, setLat] = useState(null);
   const [lng, setLng] = useState(null);
   const [locLoading, setLocLoading] = useState(false);
+
+  // ── AUTOCOMPLETE STATES ──
+  const [deliveryRates, setDeliveryRates] = useState([]);
+  const [filteredRates, setFilteredRates] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  useEffect(() => {
+    if (showSignup) {
+      fetchDeliveryRates();
+    }
+  }, [showSignup]);
+
+  const fetchDeliveryRates = async () => {
+    try {
+      const { data, error } = await supabase.from('delivery_rates').select('id, location, fee').order('location');
+      if (error) throw error;
+      if (data) setDeliveryRates(data);
+    } catch (err) {
+      console.warn('Could not fetch delivery rates:', err);
+    }
+  };
+
+  const handleAddressChange = (text) => {
+    setAddress(text);
+    if (text.length > 0) {
+      const matches = deliveryRates.filter(r => r.location.toLowerCase().includes(text.toLowerCase()));
+      setFilteredRates(matches);
+      setShowDropdown(true);
+    } else {
+      setShowDropdown(false);
+    }
+  };
+
+  const selectRate = (rate) => {
+    setAddress(rate.location);
+    setShowDropdown(false);
+  };
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -251,7 +288,31 @@ export default function LoginScreen() {
                 <TextInput style={{backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10}} placeholder="Password" value={signupPassword} onChangeText={setSignupPassword} secureTextEntry />
                 <TextInput style={{backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10}} placeholder="Full Name" value={fullName} onChangeText={setFullName} />
                 <TextInput style={{backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10}} placeholder="Contact Number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-                <TextInput style={{backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10}} placeholder="Address" value={address} onChangeText={setAddress} />
+                
+                <View style={{ zIndex: 10 }}>
+                  <TextInput 
+                    style={{backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10}} 
+                    placeholder="Address (Search Location)" 
+                    value={address} 
+                    onChangeText={handleAddressChange} 
+                  />
+                  {showDropdown && filteredRates.length > 0 && (
+                    <View style={{ backgroundColor: '#fff', borderRadius: 8, marginTop: -5, marginBottom: 10, maxHeight: 150, elevation: 3, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, overflow: 'hidden', borderWidth: 1, borderColor: '#eee' }}>
+                      <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                        {filteredRates.map((rate) => (
+                          <TouchableOpacity 
+                            key={rate.id} 
+                            style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' }}
+                            onPress={() => selectRate(rate)}
+                          >
+                            <Text style={{ color: '#000', fontSize: 15 }}>{rate.location}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  )}
+                </View>
+
                 <TextInput style={{backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10}} placeholder="Landmark (Optional)" value={landmark} onChangeText={setLandmark} />
 
                 <TouchableOpacity style={styles.loginBtn} onPress={() => setSignupStep(2)}>
