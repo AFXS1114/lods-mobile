@@ -1,0 +1,59 @@
+# Expo / React Native
+node_modules/
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Build outputs
+android/app/build/
+ios/build/
+ios/Pods/
+ios/Podfile.lock
+
+# EAS
+.eas/
+*.tar.gz
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+*.log
+
+# Metro
+.metro-cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.*.local
+
+# Android
+*.iml
+.gradle/
+local.properties
+.cxx/
+*.keystore
+
+# iOS
+*.xcworkspace
+*.xcodeproj/xcuserdata/
+*.mode1v3
+*.pbxuser
+DerivedData/
+
+# Temporary files
+tmp/
+temp/
+
+# Expo updates
+.expo-shared/
+
+# EAS secrets
+eas.json.local
