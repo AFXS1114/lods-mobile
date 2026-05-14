@@ -153,6 +153,29 @@ export function AuthProvider({ children }) {
   };
 
   // ── Logout ───────────────────────────────────────────────────
+  // ── Client Login ─────────────────────────────────────────────
+  const loginClient = async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+
+    if (error) throw new Error(error.message);
+
+    const { data: clientProfile, error: profileError } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('id', data.user.id)
+      .single();
+
+    if (profileError || !clientProfile) {
+      await supabase.auth.signOut();
+      throw new Error('Invalid email or password for customer account.');
+    }
+
+    return clientProfile;
+  };
+
   const logout = async () => {
     // Mark rider offline before logging out
     if (role === 'rider' && user?.id) {
@@ -179,7 +202,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, role, loading, loginRider, loginMerchant, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, role, loading, loginRider, loginMerchant, loginClient, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -12,7 +12,7 @@ import { COLORS } from '../shared/constants';
 import { registerForPushNotifications, savePushToken } from '../shared/notificationService';
 
 export default function LoginScreen() {
-  const { loginRider, loginMerchant } = useAuth();
+  const { loginRider, loginMerchant, loginClient } = useAuth();
 
   const [selectedRole, setSelectedRole] = useState('rider');
   const [email, setEmail] = useState('');
@@ -86,10 +86,14 @@ export default function LoginScreen() {
         userData = await loginRider(email.trim(), password);
         const token = await registerForPushNotifications();
         if (token) await savePushToken('users', userData.id, token);
-      } else {
+      } else if (selectedRole === 'merchant') {
         userData = await loginMerchant(email.trim(), password);
         const token = await registerForPushNotifications();
         if (token) await savePushToken('merchants', userData.id, token);
+      } else if (selectedRole === 'client') {
+        userData = await loginClient(email.trim(), password);
+        const token = await registerForPushNotifications();
+        if (token) await savePushToken('clients', userData.id, token);
       }
     } catch (err) {
       Alert.alert('Login Failed', err.message || 'Invalid credentials.');
@@ -191,7 +195,7 @@ export default function LoginScreen() {
 
         {/* ── Role Selector ── */}
         <View style={styles.roleRow}>
-          {['rider', 'merchant'].map((r) => (
+          {['client', 'rider', 'merchant'].map((r) => (
             <TouchableOpacity
               key={r}
               style={[styles.roleBtn, selectedRole === r && styles.roleBtnActive]}
@@ -199,12 +203,12 @@ export default function LoginScreen() {
               activeOpacity={0.8}
             >
               <Ionicons
-                name={r === 'rider' ? 'bicycle' : 'storefront'}
+                name={r === 'client' ? 'person' : r === 'rider' ? 'bicycle' : 'storefront'}
                 size={18}
                 color={selectedRole === r ? COLORS.bg : COLORS.textMuted}
               />
               <Text style={[styles.roleBtnText, selectedRole === r && styles.roleBtnTextActive]}>
-                {r === 'rider' ? 'Rider' : 'Merchant'}
+                {r === 'client' ? 'Customer' : r === 'rider' ? 'Rider' : 'Merchant'}
               </Text>
             </TouchableOpacity>
           ))}
@@ -213,7 +217,7 @@ export default function LoginScreen() {
         {/* ── Form Card ── */}
         <View style={styles.card}>
           <Text style={styles.formTitle}>
-            Sign in as {selectedRole === 'rider' ? 'Rider' : 'Merchant'}
+            Sign in as {selectedRole === 'client' ? 'Customer' : selectedRole === 'rider' ? 'Rider' : 'Merchant'}
           </Text>
 
           {/* Email */}
