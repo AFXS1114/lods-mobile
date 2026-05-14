@@ -72,12 +72,19 @@ ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.menu_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
 
--- Drop existing policies
+-- Drop existing old/new policies to ensure idempotence
 DROP POLICY IF EXISTS "Mobile App Read Merchants" ON public.merchants;
 DROP POLICY IF EXISTS "Mobile App Access Users" ON public.users;
 DROP POLICY IF EXISTS "Mobile App Access Orders" ON public.orders;
 DROP POLICY IF EXISTS "Mobile App Access Menu Items" ON public.menu_items;
+
 DROP POLICY IF EXISTS "Clients access own profile" ON public.clients;
+DROP POLICY IF EXISTS "Merchants access own profile" ON public.merchants;
+DROP POLICY IF EXISTS "Anyone can read merchants" ON public.merchants;
+DROP POLICY IF EXISTS "Riders access own profile" ON public.users;
+DROP POLICY IF EXISTS "Riders see own orders" ON public.orders;
+DROP POLICY IF EXISTS "Merchants access own menu items" ON public.menu_items;
+DROP POLICY IF EXISTS "Anyone can read menu items" ON public.menu_items;
 
 -- Create Secure Policies
 CREATE POLICY "Clients access own profile" ON public.clients FOR ALL TO authenticated USING (auth.uid() = id);
