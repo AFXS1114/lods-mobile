@@ -85,6 +85,15 @@ export function AuthProvider({ children }) {
         }
       }
 
+      if (metaRole === 'client' || !metaRole) {
+        const { data: clientProfile } = await supabase.from('clients').select('*').eq('id', uid).single();
+        if (clientProfile) {
+          await _persistSession(clientProfile, 'client');
+          setLoading(false);
+          return;
+        }
+      }
+
       // If user exists in Auth but no profile found, sign them out to prevent dead state
       console.warn('[AuthContext] No profile found for authenticated user. Signing out.');
       await supabase.auth.signOut();

@@ -2,7 +2,7 @@ import 'react-native-url-polyfill/auto';
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, Text } from 'react-native';
 
 import { AuthProvider, useAuth } from './shared/AuthContext';
 import AuthStack    from './navigation/AuthStack';
@@ -23,7 +23,15 @@ function RootNavigator() {
 
   if (!user) return <AuthStack />;
   if (role === 'rider') return <RiderStack />;
-  return <MerchantStack />;
+  if (role === 'merchant') return <MerchantStack />;
+  if (role === 'client') {
+    return (
+      <View style={{ flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: 'bold' }}>Customer interface coming soon!</Text>
+      </View>
+    );
+  }
+  return <AuthStack />;
 }
 
 export default function App() {

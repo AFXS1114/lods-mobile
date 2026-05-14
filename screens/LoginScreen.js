@@ -7,6 +7,7 @@ import {
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../shared/AuthContext';
+import { supabase } from '../shared/supabase';
 import { COLORS } from '../shared/constants';
 import { registerForPushNotifications, savePushToken } from '../shared/notificationService';
 
@@ -27,6 +28,8 @@ export default function LoginScreen() {
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [landmark, setLandmark] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
 
   const [lat, setLat] = useState(null);
   const [lng, setLng] = useState(null);
@@ -83,21 +86,32 @@ export default function LoginScreen() {
 
   const handleSignupSubmit = async () => {
     try {
-      const { error } = await supabase.from('clients').insert([
-        {
-          full_name: fullName,
-          phone: phone,
-          address: address,
-          landmark: landmark,
-          latitude: lat,
-          longitude: lng,
-          loyalty_count: 0,
-          total_orders: 0,
+      if (!signupEmail || !signupPassword || !fullName || !phone || !address) {
+        Alert.alert('Missing Fields', 'Please fill in all required fields including Email and Password.');
+        return;
+      }
+
+      setLoading(true);
+
+      const { error } = await supabase.auth.signUp({
+        email: signupEmail.trim().toLowerCase(),
+        password: signupPassword,
+        options: {
+          data: {
+            role: 'client',
+            full_name: fullName,
+            contact_no: phone,
+            address: address,
+            landmark: landmark,
+            latitude: lat,
+            longitude: lng
+          }
         }
-      ]);
+      });
 
       if (error) {
         Alert.alert('Signup Failed', error.message);
+        setLoading(false);
         return;
       }
 
@@ -112,9 +126,13 @@ export default function LoginScreen() {
       setLandmark('');
       setLat(null);
       setLng(null);
+      setSignupEmail('');
+      setSignupPassword('');
 
     } catch (e) {
       Alert.alert('Error', e.message || 'Signup failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -229,10 +247,12 @@ export default function LoginScreen() {
 
             {signupStep === 1 && (
               <>
-                <TextInput style={styles.input} placeholder="Full Name" value={fullName} onChangeText={setFullName} />
-                <TextInput style={styles.input} placeholder="Phone" value={phone} onChangeText={setPhone} />
-                <TextInput style={styles.input} placeholder="Address" value={address} onChangeText={setAddress} />
-                <TextInput style={styles.input} placeholder="Landmark" value={landmark} onChangeText={setLandmark} />
+                <TextInput style={{backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10}} placeholder="Email" value={signupEmail} onChangeText={setSignupEmail} autoCapitalize="none" keyboardType="email-address" />
+                <TextInput style={{backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10}} placeholder="Password" value={signupPassword} onChangeText={setSignupPassword} secureTextEntry />
+                <TextInput style={{backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10}} placeholder="Full Name" value={fullName} onChangeText={setFullName} />
+                <TextInput style={{backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10}} placeholder="Contact Number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+                <TextInput style={{backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10}} placeholder="Address" value={address} onChangeText={setAddress} />
+                <TextInput style={{backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10}} placeholder="Landmark (Optional)" value={landmark} onChangeText={setLandmark} />
 
                 <TouchableOpacity style={styles.loginBtn} onPress={() => setSignupStep(2)}>
                   <Text style={styles.loginBtnText}>Next</Text>

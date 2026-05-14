@@ -32,12 +32,28 @@ CREATE TABLE IF NOT EXISTS public.menu_items (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- 4.5 Create Clients Table
+CREATE TABLE IF NOT EXISTS public.clients (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT UNIQUE NOT NULL,
+  full_name TEXT NOT NULL,
+  address TEXT NOT NULL,
+  contact_no TEXT NOT NULL,
+  landmark TEXT,
+  latitude DOUBLE PRECISION,
+  longitude DOUBLE PRECISION,
+  loyalty_count INTEGER DEFAULT 0,
+  total_orders INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- 5. Enable Realtime
 DO $$
 DECLARE
   tbl TEXT;
 BEGIN
-  FOREACH tbl IN ARRAY ARRAY['orders', 'menu_items', 'users'] LOOP
+  FOREACH tbl IN ARRAY ARRAY['orders', 'menu_items', 'users', 'clients'] LOOP
     BEGIN
       EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE public.%I', tbl);
     EXCEPTION WHEN duplicate_object THEN
@@ -54,14 +70,17 @@ ALTER TABLE public.merchants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.menu_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies
 DROP POLICY IF EXISTS "Mobile App Read Merchants" ON public.merchants;
 DROP POLICY IF EXISTS "Mobile App Access Users" ON public.users;
 DROP POLICY IF EXISTS "Mobile App Access Orders" ON public.orders;
 DROP POLICY IF EXISTS "Mobile App Access Menu Items" ON public.menu_items;
+DROP POLICY IF EXISTS "Clients access own profile" ON public.clients;
 
 -- Create Secure Policies
+CREATE POLICY "Clients access own profile" ON public.clients FOR ALL TO authenticated USING (auth.uid() = id);
 CREATE POLICY "Merchants access own profile" ON public.merchants FOR ALL TO authenticated USING (auth.uid() = id);
 CREATE POLICY "Anyone can read merchants" ON public.merchants FOR SELECT TO authenticated USING (true);
 
@@ -87,6 +106,21 @@ BEGIN
   ELSIF NEW.raw_user_meta_data->>'role' = 'merchant' THEN
     INSERT INTO public.merchants (id, email)
     VALUES (NEW.id, NEW.email)
+    ON CONFLICT (id) DO NOTHING;
+  ELSIF NEW.raw_user_meta_data->>'role' = 'client' THEN
+    INSERT INTO public.clients (
+      id, email, full_name, address, contact_no, landmark, latitude, longitude
+    )
+    VALUES (
+      NEW.id, 
+      NEW.email, 
+      NEW.raw_user_meta_data->>'full_name',
+      NEW.raw_user_meta_data->>'address',
+      NEW.raw_user_meta_data->>'contact_no',
+      NEW.raw_user_meta_data->>'landmark',
+      NULLIF(NEW.raw_user_meta_data->>'latitude', '')::DOUBLE PRECISION,
+      NULLIF(NEW.raw_user_meta_data->>'longitude', '')::DOUBLE PRECISION
+    )
     ON CONFLICT (id) DO NOTHING;
   END IF;
   RETURN NEW;
