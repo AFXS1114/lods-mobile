@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   TextInput, Alert, ActivityIndicator, ScrollView,
@@ -21,6 +21,26 @@ export default function RiderProfileScreen() {
     contact:      user?.contact || '',
     vehicle_type: user?.vehicle_type || 'Motorcycle',
   });
+  const [avgRating, setAvgRating] = useState(0);
+  const [ratingCount, setRatingCount] = useState(0);
+
+  useEffect(() => {
+    fetchRating();
+  }, []);
+
+  const fetchRating = async () => {
+    const { data, error } = await supabase
+      .from('ratings')
+      .select('rider_rating')
+      .eq('rider_id', user.id);
+
+    if (!error && data) {
+      const count = data.length;
+      const avg = count > 0 ? data.reduce((acc, curr) => acc + curr.rider_rating, 0) / count : 0;
+      setAvgRating(avg);
+      setRatingCount(count);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -71,6 +91,15 @@ export default function RiderProfileScreen() {
             <Text style={styles.avatarInitial}>{(user?.name || 'R').charAt(0).toUpperCase()}</Text>
           </View>
           <Text style={styles.displayName}>{user?.name || 'Rider'}</Text>
+          
+          {ratingCount > 0 && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+              <Ionicons name="star" size={16} color={COLORS.accent} />
+              <Text style={{ color: COLORS.text, fontWeight: 'bold', fontSize: 14 }}>{avgRating.toFixed(1)}</Text>
+              <Text style={{ color: COLORS.textDim, fontSize: 12 }}>({ratingCount} reviews)</Text>
+            </View>
+          )}
+
           <View style={[styles.statusPill, { borderColor: statusColor }]}>
             <View style={[styles.dot, { backgroundColor: statusColor }]} />
             <Text style={[styles.statusLabel, { color: statusColor }]}>{(user?.status || 'offline').toUpperCase()}</Text>

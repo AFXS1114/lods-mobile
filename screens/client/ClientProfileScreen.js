@@ -74,6 +74,21 @@ export default function ClientProfileScreen() {
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         
+        {/* Loyalty Section */}
+        <Text style={{ fontSize: 18, fontWeight: 'bold', color: COLORS.text, marginBottom: 16 }}>Loyalty Program</Text>
+        <View style={{ backgroundColor: COLORS.primaryDim, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: COLORS.primary, marginBottom: 24 }}>
+          <Text style={{ color: COLORS.text, fontSize: 16, fontWeight: 'bold' }}>Loyalty Count: {user?.loyalty_count || 0} / 10</Text>
+          <Text style={{ color: COLORS.textMuted, fontSize: 12, marginTop: 4 }}>
+            {user?.loyalty_count >= 10 
+              ? "Congratulations! Your next delivery is FREE!" 
+              : `${10 - (user?.loyalty_count || 0)} more orders to get a free delivery.`}
+          </Text>
+          {/* Simple Progress Bar */}
+          <View style={{ height: 8, backgroundColor: COLORS.surface, borderRadius: 4, marginTop: 12, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border }}>
+            <View style={{ height: '100%', backgroundColor: COLORS.primary, width: `${Math.min(((user?.loyalty_count || 0) / 10) * 100, 100)}%` }} />
+          </View>
+        </View>
+
         {/* Profile Info Section */}
         <Text style={{ fontSize: 18, fontWeight: 'bold', color: COLORS.text, marginBottom: 16 }}>Profile Details</Text>
         <View style={{ backgroundColor: COLORS.surface, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, marginBottom: 24 }}>

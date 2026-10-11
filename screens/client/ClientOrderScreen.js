@@ -6,7 +6,7 @@ import { COLORS } from '../../shared/constants';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function ClientOrderScreen({ navigation }) {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const [loading, setLoading] = useState(false);
 
   // Data
@@ -20,6 +20,12 @@ export default function ClientOrderScreen({ navigation }) {
   const [landmark, setLandmark] = useState(user?.landmark || '');
   const [items, setItems] = useState([]); // {id, name, price, qty}
   const [deliveryFee, setDeliveryFee] = useState(0);
+  const [loyaltyCount, setLoyaltyCount] = useState(0);
+
+  // Manual Entry State
+  const [isManualMerchant, setIsManualMerchant] = useState(false);
+  const [customMerchantName, setCustomMerchantName] = useState('');
+  const [manualItemName, setManualItemName] = useState('');
 
   // UI State
   const [showMerchantModal, setShowMerchantModal] = useState(false);
@@ -35,7 +41,9 @@ export default function ClientOrderScreen({ navigation }) {
     try {
       // Fetch Merchants
       const { data: mData } = await supabase.from('merchants').select('*');
-      if (mData) setMerchants(mData);
+      if (mData) {
+        setMerchants([...mData, { id: 'custom', name: 'Please specify', category: 'Manual Entry' }]);
+      }
 
       // Fetch Rates
       const { data: rData } = await supabase.from('delivery_rates').select('*');
@@ -44,6 +52,12 @@ export default function ClientOrderScreen({ navigation }) {
         // Try to auto-set delivery fee based on user's address
         const match = rData.find(r => r.location.toLowerCase() === user?.address?.toLowerCase());
         if (match) setDeliveryFee(Number(match.fee));
+      }
+
+      // Fetch Loyalty Count
+      const { data: clientData } = await supabase.from('clients').select('loyalty_count').eq('id', user.id).single();
+      if (clientData) {
+        setLoyaltyCount(clientData.loyalty_count || 0);
       }
     } catch (e) {
       console.warn(e);
@@ -54,10 +68,33 @@ export default function ClientOrderScreen({ navigation }) {
     setMerchantId(id);
     setShowMerchantModal(false);
     setItems([]); // reset cart if merchant changes
+    
+    if (id === 'custom') {
+      setIsManualMerchant(true);
+      setMenuItems([]);
+    } else {
+      setIsManualMerchant(false);
+      setCustomMerchantName('');
+      // Fetch menu
+      const { data } = await supabase.from('menu_items').select('*').eq('merchant_id', id).eq('is_available', true);
+      if (data) setMenuItems(data);
+    }
+  };
 
-    // Fetch menu
-    const { data } = await supabase.from('menu_items').select('*').eq('merchant_id', id).eq('is_available', true);
-    if (data) setMenuItems(data);
+  const addManualItem = () => {
+    if (!manualItemName) {
+      Alert.alert('Error', 'Please enter item name.');
+      return;
+    }
+    const newItem = {
+      id: `manual-${Date.now()}`,
+      name: manualItemName,
+      price: 0,
+      qty: 1,
+      is_manual: true
+    };
+    setItems([...items, newItem]);
+    setManualItemName('');
   };
 
   const handleAddressChange = (text) => {
@@ -101,10 +138,12 @@ export default function ClientOrderScreen({ navigation }) {
   };
 
   const subtotal = items.reduce((acc, i) => acc + (i.price * i.qty), 0);
-  const grandTotal = subtotal + deliveryFee;
+  const actualDeliveryFee = loyaltyCount >= 10 ? 0 : deliveryFee;
+  const grandTotal = subtotal + actualDeliveryFee;
 
   const handleCheckout = async () => {
     if (!merchantId) return Alert.alert('Error', 'Please select a merchant.');
+    if (isManualMerchant && !customMerchantName) return Alert.alert('Error', 'Please specify the merchant name.');
     if (items.length === 0) return Alert.alert('Error', 'Your cart is empty.');
     if (!address) return Alert.alert('Error', 'Please enter a delivery address.');
 
@@ -118,19 +157,34 @@ export default function ClientOrderScreen({ navigation }) {
         client_id: user.id,
         customer_name: user.full_name,
         customer_phone: user.phone,
-        merchant_id: merchantId,
-        merchant_name: selectedMerchant?.name || 'Generic Merchant',
+        merchant_id: isManualMerchant ? null : merchantId,
+        merchant_name: isManualMerchant ? customMerchantName : (selectedMerchant?.name || 'Generic Merchant'),
         delivery_address: address,
         landmark: landmark,
         items: items.map(i => ({ ...i, total: i.qty * i.price })),
         status: 'pending',
         subtotal: subtotal,
-        delivery_fee: deliveryFee,
+        delivery_fee: actualDeliveryFee,
         final_total: grandTotal,
       };
 
       const { error } = await supabase.from('orders').insert(orderData);
       if (error) throw error;
+
+      // Update Loyalty Count
+      const isFreeOrder = loyaltyCount >= 10;
+      const newLoyaltyCount = isFreeOrder ? 0 : loyaltyCount + 1;
+
+      const { error: updateError } = await supabase
+        .from('clients')
+        .update({ loyalty_count: newLoyaltyCount })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      // Update local state & context
+      updateUser({ loyalty_count: newLoyaltyCount });
+      setLoyaltyCount(newLoyaltyCount);
 
       Alert.alert('Success', 'Your order has been placed!');
       setItems([]);
@@ -159,17 +213,51 @@ export default function ClientOrderScreen({ navigation }) {
           <Ionicons name="chevron-down" size={20} color={COLORS.textDim} />
         </TouchableOpacity>
 
+        {isManualMerchant && (
+          <TextInput 
+            style={{ backgroundColor: COLORS.surface, color: COLORS.text, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: COLORS.border, marginTop: 10 }} 
+            placeholder="Specify Merchant Name (e.g. 7-Eleven, Local Store)" 
+            placeholderTextColor={COLORS.textDim}
+            value={customMerchantName} 
+            onChangeText={setCustomMerchantName} 
+          />
+        )}
+
         {/* 2. Menu & Cart */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, marginBottom: 8 }}>
           <Text style={{ fontSize: 14, fontWeight: 'bold', color: COLORS.text }}>2. ORDER ITEMS</Text>
-          <TouchableOpacity 
-            disabled={!merchantId} 
-            style={{ backgroundColor: merchantId ? COLORS.primary : COLORS.border, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}
-            onPress={() => setShowMenuModal(true)}
-          >
-            <Text style={{ color: merchantId ? '#fff' : COLORS.textDim, fontSize: 12, fontWeight: 'bold' }}>Browse Menu</Text>
-          </TouchableOpacity>
+          {!isManualMerchant && (
+            <TouchableOpacity 
+              disabled={!merchantId} 
+              style={{ backgroundColor: merchantId ? COLORS.primary : COLORS.border, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}
+              onPress={() => setShowMenuModal(true)}
+            >
+              <Text style={{ color: merchantId ? '#fff' : COLORS.textDim, fontSize: 12, fontWeight: 'bold' }}>Browse Menu</Text>
+            </TouchableOpacity>
+          )}
         </View>
+
+        {isManualMerchant && (
+          <View style={{ backgroundColor: COLORS.surface, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, marginBottom: 12, gap: 10 }}>
+            <Text style={{ fontSize: 12, fontWeight: 'bold', color: COLORS.textDim }}>Add Custom Item</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TextInput 
+                style={{ flex: 1, backgroundColor: COLORS.bg, color: COLORS.text, borderRadius: 8, padding: 10, borderWidth: 1, borderColor: COLORS.border }} 
+                placeholder="Item Name (e.g. 1kg Rice, 1 can Sardines)" 
+                placeholderTextColor={COLORS.textDim}
+                value={manualItemName}
+                onChangeText={setManualItemName}
+              />
+              <TouchableOpacity 
+                style={{ backgroundColor: COLORS.primary, width: 44, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}
+                onPress={addManualItem}
+              >
+                <Ionicons name="add" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            <Text style={{ fontSize: 10, color: COLORS.warning, fontStyle: 'italic' }}>* Rider will input the actual price upon purchase.</Text>
+          </View>
+        )}
 
         <View style={{ backgroundColor: COLORS.surface, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border }}>
           {items.length === 0 ? (
@@ -236,13 +324,21 @@ export default function ClientOrderScreen({ navigation }) {
 
         {/* Checkout Summary */}
         <View style={{ backgroundColor: COLORS.primaryDim, padding: 16, borderRadius: 12, marginTop: 16, marginBottom: 40 }}>
+          {loyaltyCount >= 10 && (
+            <View style={{ backgroundColor: COLORS.primary, padding: 8, borderRadius: 8, marginBottom: 12 }}>
+              <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center', fontSize: 12 }}>🎉 Loyalty Reward: Free Delivery! 🎉</Text>
+            </View>
+          )}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
             <Text style={{ color: COLORS.text }}>Subtotal</Text>
             <Text style={{ color: COLORS.text, fontWeight: 'bold' }}>₱{subtotal.toFixed(2)}</Text>
           </View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
             <Text style={{ color: COLORS.text }}>Delivery Fee</Text>
-            <Text style={{ color: COLORS.text, fontWeight: 'bold' }}>₱{deliveryFee.toFixed(2)}</Text>
+            <Text style={{ color: COLORS.text, fontWeight: 'bold' }}>
+              {loyaltyCount >= 10 ? <Text style={{ textDecorationLine: 'line-through', color: COLORS.textDim }}>₱{deliveryFee.toFixed(2)}</Text> : `₱${deliveryFee.toFixed(2)}`}
+              {loyaltyCount >= 10 && ' ₱0.00'}
+            </Text>
           </View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: 12 }}>
             <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: 'bold' }}>Total</Text>

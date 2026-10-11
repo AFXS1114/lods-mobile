@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
 import { NOTIF_CHANNEL_ID } from './constants';
@@ -46,7 +47,14 @@ export async function registerForPushNotifications() {
     return null;
   }
 
-  const tokenData = await Notifications.getExpoPushTokenAsync();
+  const projectId =
+    Constants?.expoConfig?.extra?.eas?.projectId ??
+    Constants?.easConfig?.projectId ??
+    '78d2e3d7-d0d9-4c4b-a103-f2ed5f389b05';
+
+  const tokenData = await Notifications.getExpoPushTokenAsync(
+    projectId ? { projectId } : undefined
+  );
   return tokenData.data;
 }
 

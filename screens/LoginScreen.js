@@ -189,8 +189,8 @@ export default function LoginScreen() {
           <View style={styles.logoRing}>
             <Ionicons name="flash" size={36} color={COLORS.primary} />
           </View>
-          <Text style={styles.appName}>LODS Mobile</Text>
-          <Text style={styles.tagline}>Logistics Operations Dispatch System</Text>
+          <Text style={styles.appName}>LODS</Text>
+          <Text style={styles.tagline}>Lean On Us for All Your Delivery Needs!</Text>
         </View>
 
         {/* ── Role Selector ── */}
@@ -208,7 +208,7 @@ export default function LoginScreen() {
                 color={selectedRole === r ? COLORS.bg : COLORS.textMuted}
               />
               <Text style={[styles.roleBtnText, selectedRole === r && styles.roleBtnTextActive]}>
-                {r === 'client' ? 'Customer' : r === 'rider' ? 'Rider' : 'Merchant'}
+                {r === 'client' ? ' ' : r === 'rider' ? ' ' : ' '}
               </Text>
             </TouchableOpacity>
           ))}
@@ -288,24 +288,24 @@ export default function LoginScreen() {
 
             {signupStep === 1 && (
               <>
-                <TextInput style={{backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10}} placeholder="Email" value={signupEmail} onChangeText={setSignupEmail} autoCapitalize="none" keyboardType="email-address" />
-                <TextInput style={{backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10}} placeholder="Password" value={signupPassword} onChangeText={setSignupPassword} secureTextEntry />
-                <TextInput style={{backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10}} placeholder="Full Name" value={fullName} onChangeText={setFullName} />
-                <TextInput style={{backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10}} placeholder="Contact Number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-                
+                <TextInput style={{ backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10 }} placeholder="Email" value={signupEmail} onChangeText={setSignupEmail} autoCapitalize="none" keyboardType="email-address" />
+                <TextInput style={{ backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10 }} placeholder="Password" value={signupPassword} onChangeText={setSignupPassword} secureTextEntry />
+                <TextInput style={{ backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10 }} placeholder="Full Name" value={fullName} onChangeText={setFullName} />
+                <TextInput style={{ backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10 }} placeholder="Contact Number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+
                 <View style={{ zIndex: 10 }}>
-                  <TextInput 
-                    style={{backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10}} 
-                    placeholder="Address (Search Location)" 
-                    value={address} 
-                    onChangeText={handleAddressChange} 
+                  <TextInput
+                    style={{ backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10 }}
+                    placeholder="Address (Search Location)"
+                    value={address}
+                    onChangeText={handleAddressChange}
                   />
                   {showDropdown && filteredRates.length > 0 && (
                     <View style={{ backgroundColor: '#fff', borderRadius: 8, marginTop: -5, marginBottom: 10, maxHeight: 150, elevation: 3, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, overflow: 'hidden', borderWidth: 1, borderColor: '#eee' }}>
                       <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
                         {filteredRates.map((rate) => (
-                          <TouchableOpacity 
-                            key={rate.id} 
+                          <TouchableOpacity
+                            key={rate.id}
                             style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' }}
                             onPress={() => selectRate(rate)}
                           >
@@ -317,7 +317,7 @@ export default function LoginScreen() {
                   )}
                 </View>
 
-                <TextInput style={{backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10}} placeholder="Landmark (Optional)" value={landmark} onChangeText={setLandmark} />
+                <TextInput style={{ backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10 }} placeholder="Landmark (Optional)" value={landmark} onChangeText={setLandmark} />
 
                 <TouchableOpacity style={styles.loginBtn} onPress={() => setSignupStep(2)}>
                   <Text style={styles.loginBtnText}>Next</Text>

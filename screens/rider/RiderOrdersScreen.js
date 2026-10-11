@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet,
+  View, Text, ScrollView, StyleSheet, Modal, TextInput,
   TouchableOpacity, Alert, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +18,11 @@ export default function RiderOrdersScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [updating,   setUpdating]   = useState(null); // order id being updated
   const prevOrderIdsRef = useRef(new Set());
+
+  // Price Editing State
+  const [editPriceModalVisible, setEditPriceModalVisible] = useState(false);
+  const [editingOrder, setEditingOrder] = useState(null);
+  const [editingItems, setEditingItems] = useState([]);
 
   // ── Fetch & Realtime ───────────────────────────────────────
   useEffect(() => {
@@ -97,6 +102,57 @@ export default function RiderOrdersScreen() {
     );
   };
 
+  const handleCancel = (order) => {
+    Alert.alert(
+      'Cancel Order',
+      `Are you sure you want to cancel booking ${order.booking_no}?`,
+      [
+        { text: 'No', style: 'cancel' },
+        { text: 'Yes, Cancel', style: 'destructive', onPress: () => updateOrderStatus(order.id, ORDER_STATUS.CANCELLED) },
+      ],
+    );
+  };
+
+  const openPriceEditor = (order) => {
+    setEditingOrder(order);
+    setEditingItems(order.items || []);
+    setEditPriceModalVisible(true);
+  };
+
+  const updateItemPrice = (index, price) => {
+    const newItems = [...editingItems];
+    newItems[index].price = price;
+    setEditingItems(newItems);
+  };
+
+  const savePrices = async () => {
+    if (!editingOrder) return;
+    setUpdating(editingOrder.id);
+    
+    try {
+      const subtotal = editingItems.reduce((acc, i) => acc + (Number(i.price || 0) * i.qty), 0);
+      const final_total = subtotal + Number(editingOrder.delivery_fee || 0);
+
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          items: editingItems.map(i => ({ ...i, total: Number(i.price || 0) * i.qty })),
+          subtotal,
+          final_total,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingOrder.id);
+
+      if (error) throw error;
+      setEditPriceModalVisible(false);
+      fetchOrders();
+    } catch (e) {
+      Alert.alert('Update Failed', e.message);
+    } finally {
+      setUpdating(null);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -142,15 +198,58 @@ export default function RiderOrdersScreen() {
               updating={updating === order.id}
               onAccept={() => handleAccept(order)}
               onDeliver={() => handleDeliver(order)}
+              onCancel={() => handleCancel(order)}
+              onEditPrices={() => openPriceEditor(order)}
             />
           ))
         )}
       </ScrollView>
+
+      {/* Price Editor Modal */}
+      <Modal visible={editPriceModalVisible} animationType="slide" transparent={true}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: COLORS.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '80%' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', color: COLORS.text }}>Update Item Prices</Text>
+              <TouchableOpacity onPress={() => setEditPriceModalVisible(false)}>
+                <Ionicons name="close" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView>
+              {editingItems.map((item, idx) => (
+                <View key={idx} style={{ marginBottom: 16, backgroundColor: COLORS.surface, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border }}>
+                  <Text style={{ color: COLORS.text, fontWeight: 'bold', marginBottom: 8 }}>{item.qty}x {item.name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <Text style={{ color: COLORS.textDim }}>₱</Text>
+                    <TextInput
+                      style={{ flex: 1, backgroundColor: COLORS.bg, color: COLORS.text, borderRadius: 8, padding: 10, borderWidth: 1, borderColor: COLORS.border }}
+                      placeholder="Actual Price"
+                      placeholderTextColor={COLORS.textDim}
+                      keyboardType="numeric"
+                      value={String(item.price || '')}
+                      onChangeText={(val) => updateItemPrice(idx, val)}
+                    />
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity 
+              style={{ backgroundColor: COLORS.primary, padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 20 }}
+              onPress={savePrices}
+              disabled={!!updating}
+            >
+              {updating === editingOrder?.id ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Save All Prices</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
-function OrderCard({ order, updating, onAccept, onDeliver }) {
+function OrderCard({ order, updating, onAccept, onDeliver, onCancel, onEditPrices }) {
   const isAssigned  = order.status === ORDER_STATUS.ASSIGNED;
   const isInTransit = order.status === ORDER_STATUS.IN_TRANSIT || order.status === ORDER_STATUS.PICKED_UP;
 
@@ -196,17 +295,29 @@ function OrderCard({ order, updating, onAccept, onDeliver }) {
       {/* ── Action buttons ── */}
       <View style={styles.actionRow}>
         {isAssigned && (
-          <TouchableOpacity
-            style={[styles.btn, styles.btnAccept]}
-            onPress={onAccept}
-            disabled={updating}
-            activeOpacity={0.8}
-          >
-            {updating
-              ? <ActivityIndicator color="#fff" size="small" />
-              : <><Ionicons name="checkmark-circle" size={18} color="#fff" /><Text style={styles.btnText}>Accept & Start</Text></>
-            }
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity
+              style={[styles.btn, styles.btnCancel]}
+              onPress={onCancel}
+              disabled={updating}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="close-circle" size={18} color="#fff" />
+              <Text style={styles.btnText}>Cancel</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.btn, styles.btnAccept]}
+              onPress={onAccept}
+              disabled={updating}
+              activeOpacity={0.8}
+            >
+              {updating
+                ? <ActivityIndicator color="#fff" size="small" />
+                : <><Ionicons name="checkmark-circle" size={18} color="#fff" /><Text style={styles.btnText}>Accept & Start</Text></>
+              }
+            </TouchableOpacity>
+          </>
         )}
 
         {isInTransit && (
@@ -220,6 +331,16 @@ function OrderCard({ order, updating, onAccept, onDeliver }) {
               ? <ActivityIndicator color="#fff" size="small" />
               : <><Ionicons name="flag" size={18} color="#fff" /><Text style={styles.btnText}>Mark Delivered</Text></>
             }
+          </TouchableOpacity>
+        )}
+
+        {(isAssigned || isInTransit) && (
+          <TouchableOpacity
+            style={{ backgroundColor: COLORS.accent + '20', padding: 13, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}
+            onPress={onEditPrices}
+            disabled={updating}
+          >
+            <Ionicons name="pricetag" size={20} color={COLORS.accent} />
           </TouchableOpacity>
         )}
       </View>
@@ -298,4 +419,5 @@ const styles = StyleSheet.create({
   btnText:     { color: '#fff', fontSize: 14, fontWeight: '700' },
   btnAccept:   { backgroundColor: COLORS.accent },
   btnDeliver:  { backgroundColor: COLORS.info },
+  btnCancel:   { backgroundColor: COLORS.danger },
 });

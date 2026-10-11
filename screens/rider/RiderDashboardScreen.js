@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Switch,
-  TouchableOpacity, Alert, AppState,
+  TouchableOpacity, Alert, AppState, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -41,22 +41,32 @@ export default function RiderDashboardScreen() {
     const sub = AppState.addEventListener('change', async (nextState) => {
       if (appStateRef.current.match(/inactive|background/) && nextState === 'active') {
         await setRiderStatus(RIDER_STATUS.ONLINE);
+        startTracking(); // Auto-resume tracking
       } else if (nextState.match(/inactive|background/)) {
         await setRiderStatus(RIDER_STATUS.OFFLINE);
-        stopTracking();
+        stopTracking(); // Auto-pause tracking
       }
       appStateRef.current = nextState;
     });
-    // Mark online on mount
-    setRiderStatus(RIDER_STATUS.ONLINE);
-    return () => { sub.remove(); stopTracking(); };
+
+    // Initialize tracking and status on mount
+    const init = async () => {
+      await setRiderStatus(RIDER_STATUS.ONLINE);
+      startTracking();
+    };
+    init();
+
+    return () => { 
+      sub.remove(); 
+      stopTracking(); 
+    };
   }, []);
 
   const fetchActiveOrders = async () => {
     setLoadingOrders(true);
     const { data } = await supabase
       .from('orders')
-      .select('id, booking_no, status, delivery_address, customer_name')
+      .select('id, booking_no, status, delivery_address, customer_name, customer_phone')
       .eq('rider_id', user.id)
       .in('status', [ORDER_STATUS.ASSIGNED, ORDER_STATUS.IN_TRANSIT, ORDER_STATUS.PICKED_UP]);
     setActiveOrders(data || []);
@@ -100,8 +110,6 @@ export default function RiderDashboardScreen() {
     setIsTracking(false);
   };
 
-  const toggleTracking = () => isTracking ? stopTracking() : startTracking();
-
   // ── Status badge color ─────────────────────────────────────
   const statusColor = {
     online:    COLORS.accent,
@@ -141,15 +149,14 @@ export default function RiderDashboardScreen() {
                   ? gpsLocation
                     ? `${gpsLocation.latitude.toFixed(5)}, ${gpsLocation.longitude.toFixed(5)}`
                     : 'Acquiring signal…'
-                  : 'Tracking is OFF — turn on to start transmitting location'}
+                  : 'Managed automatically based on app visibility'}
               </Text>
             </View>
-            <Switch
-              value={isTracking}
-              onValueChange={toggleTracking}
-              trackColor={{ false: COLORS.surface, true: COLORS.primaryDim }}
-              thumbColor={isTracking ? COLORS.primary : COLORS.textMuted}
-            />
+            <View style={[styles.statusBadge, { backgroundColor: isTracking ? COLORS.success + '22' : COLORS.textMuted + '22' }]}>
+              <Text style={[styles.statusBadgeText, { color: isTracking ? COLORS.success : COLORS.textMuted }]}>
+                {isTracking ? 'ACTIVE' : 'PAUSED'}
+              </Text>
+            </View>
           </View>
 
           {isTracking && (
@@ -181,13 +188,40 @@ export default function RiderDashboardScreen() {
         ) : (
           activeOrders.map((order) => (
             <View key={order.id} style={styles.orderPreviewCard}>
-              <Text style={styles.orderNo}>{order.booking_no}</Text>
-              <Text style={styles.orderCustomer}>{order.customer_name}</Text>
-              <Text style={styles.orderAddress} numberOfLines={1}>{order.delivery_address}</Text>
-              <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) + '22' }]}>
-                <Text style={[styles.statusBadgeText, { color: getStatusColor(order.status) }]}>
-                  {order.status.toUpperCase()}
-                </Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={styles.orderNo}>{order.booking_no}</Text>
+                  <Text style={styles.orderCustomer}>{order.customer_name}</Text>
+                  <Text style={styles.orderAddress} numberOfLines={1}>{order.delivery_address}</Text>
+                  {order.customer_phone && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                      <Ionicons name="call-outline" size={12} color={COLORS.textMuted} />
+                      <Text style={{ fontSize: 12, color: COLORS.textMuted, marginLeft: 4 }}>{order.customer_phone}</Text>
+                    </View>
+                  )}
+                </View>
+
+                <View style={{ alignItems: 'flex-end', gap: 8 }}>
+                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) + '22' }]}>
+                    <Text style={[styles.statusBadgeText, { color: getStatusColor(order.status) }]}>
+                      {order.status.toUpperCase()}
+                    </Text>
+                  </View>
+                  
+                  {order.customer_phone && (
+                    <TouchableOpacity 
+                      onPress={() => Linking.openURL(`tel:${order.customer_phone}`)}
+                      style={{ 
+                        backgroundColor: COLORS.info + '20', 
+                        width: 36, height: 36, 
+                        borderRadius: 18, 
+                        alignItems: 'center', justifyContent: 'center' 
+                      }}
+                    >
+                      <Ionicons name="call" size={18} color={COLORS.info} />
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
             </View>
           ))
