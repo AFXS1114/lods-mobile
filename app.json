@@ -51,6 +51,7 @@
         "expo-splash-screen",
         {
           "image": "./assets/lods-logo.png",
+          "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#FFFFFF"
         }
