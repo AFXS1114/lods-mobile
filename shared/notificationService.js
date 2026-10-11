@@ -50,7 +50,7 @@ export async function registerForPushNotifications() {
   const projectId =
     Constants?.expoConfig?.extra?.eas?.projectId ??
     Constants?.easConfig?.projectId ??
-    '78d2e3d7-d0d9-4c4b-a103-f2ed5f389b05';
+    'ffc5846f-5b4b-4cc9-9f08-3265aedebbe6';
 
   const tokenData = await Notifications.getExpoPushTokenAsync(
     projectId ? { projectId } : undefined
