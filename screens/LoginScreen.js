@@ -144,8 +144,8 @@ export default function LoginScreen() {
             contact_no: phone,
             address: address,
             landmark: landmark,
-            latitude: lat,
-            longitude: lng
+            latitude: lat || 0,
+            longitude: lng || 0
           }
         }
       });
@@ -282,21 +282,22 @@ export default function LoginScreen() {
         <Modal visible={showSignup} animationType="slide">
           <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 60 }}>
 
-            <Text style={{ fontSize: 20, fontWeight: '700', marginBottom: 20 }}>
+            <Text style={{ fontSize: 20, fontWeight: '700', marginBottom: 20, color: COLORS.text }}>
               Customer Signup
             </Text>
 
             {signupStep === 1 && (
               <>
-                <TextInput style={{ backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10 }} placeholder="Email" value={signupEmail} onChangeText={setSignupEmail} autoCapitalize="none" keyboardType="email-address" />
-                <TextInput style={{ backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10 }} placeholder="Password" value={signupPassword} onChangeText={setSignupPassword} secureTextEntry />
-                <TextInput style={{ backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10 }} placeholder="Full Name" value={fullName} onChangeText={setFullName} />
-                <TextInput style={{ backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10 }} placeholder="Contact Number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+                <TextInput style={{ backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border }} placeholder="Email" placeholderTextColor="#888" value={signupEmail} onChangeText={setSignupEmail} autoCapitalize="none" keyboardType="email-address" />
+                <TextInput style={{ backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border }} placeholder="Password" placeholderTextColor="#888" value={signupPassword} onChangeText={setSignupPassword} secureTextEntry />
+                <TextInput style={{ backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border }} placeholder="Full Name" placeholderTextColor="#888" value={fullName} onChangeText={setFullName} />
+                <TextInput style={{ backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border }} placeholder="Contact Number" placeholderTextColor="#888" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
 
                 <View style={{ zIndex: 10 }}>
                   <TextInput
-                    style={{ backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10 }}
+                    style={{ backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border }}
                     placeholder="Address (Search Location)"
+                    placeholderTextColor="#888"
                     value={address}
                     onChangeText={handleAddressChange}
                   />
@@ -317,7 +318,7 @@ export default function LoginScreen() {
                   )}
                 </View>
 
-                <TextInput style={{ backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10 }} placeholder="Landmark (Optional)" value={landmark} onChangeText={setLandmark} />
+                <TextInput style={{ backgroundColor: '#fff', color: '#000', borderRadius: 8, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border }} placeholder="Landmark (Optional)" placeholderTextColor="#888" value={landmark} onChangeText={setLandmark} />
 
                 <TouchableOpacity style={styles.loginBtn} onPress={() => setSignupStep(2)}>
                   <Text style={styles.loginBtnText}>Next</Text>
@@ -327,7 +328,7 @@ export default function LoginScreen() {
 
             {signupStep === 2 && (
               <>
-                <Text style={{ marginBottom: 20 }}>Auto-detect location</Text>
+                <Text style={{ marginBottom: 20, color: COLORS.text }}>Auto-detect location</Text>
 
                 <TouchableOpacity style={styles.loginBtn} onPress={getLocation}>
                   {locLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.loginBtnText}>Get Location</Text>}
@@ -337,8 +338,8 @@ export default function LoginScreen() {
 
             {signupStep === 3 && (
               <>
-                <Text>Latitude: {lat}</Text>
-                <Text>Longitude: {lng}</Text>
+                <Text style={{ color: COLORS.text }}>Latitude: {lat}</Text>
+                <Text style={{ marginBottom: 20, color: COLORS.text }}>Longitude: {lng}</Text>
 
                 <TouchableOpacity style={styles.loginBtn} onPress={handleSignupSubmit}>
                   <Text style={styles.loginBtnText}>Create Account</Text>
