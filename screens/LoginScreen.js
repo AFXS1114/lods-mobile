@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert,
-  Modal
+  Modal, Image
 } from 'react-native';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
@@ -187,7 +187,10 @@ export default function LoginScreen() {
         {/* ── Header ── */}
         <View style={styles.header}>
           <View style={styles.logoRing}>
-            <Ionicons name="flash" size={36} color={COLORS.primary} />
+            <Image
+              source={require('../assets/lods-logo.png')}
+              style={{ width: 50, height: 50, resizeMode: 'contain' }}
+            />
           </View>
           <Text style={styles.appName}>LODS</Text>
           <Text style={styles.tagline}>Lean On Us for All Your Delivery Needs!</Text>
